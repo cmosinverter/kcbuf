@@ -1,0 +1,31 @@
+# --- 外部相依套件（可由 doc/doc.md 的 git clone 指令重建，請勿納入版控）---
+/qemu/
+/linux/
+/busybox/
+
+# --- 可重建的建置產物 ---
+/initramfs.cpio.gz
+
+# --- Linux 核心模組建置產物 ---
+*.o
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+*.symvers
+Module.symvers
+modules.order
+.tmp_versions/
+
+# 隱藏的 build 指令快取檔（.hello.o.cmd、..module-common.o.cmd 等）
+.*.cmd
+
+# --- bench host 測試二進位 ---
+bench/core_test
+
+# --- 編譯出的 userspace 測試/效能二進位（可由 make 重建）---
+modules/bench
+
+# --- 一般雜項 ---
+*.swp
+*~
