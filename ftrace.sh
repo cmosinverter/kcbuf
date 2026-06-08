@@ -5,11 +5,6 @@ insmod ringbuf.ko
 
 cd /sys/kernel/tracing
 
-echo 'mutex_lock_interruptible_nested' >  set_ftrace_filter
-echo 'mutex_unlock'                    >> set_ftrace_filter
-echo '__mutex_lock'                    >> set_ftrace_filter
-echo '__mutex_unlock_slowpath'         >> set_ftrace_filter
-echo 'mutex_spin_on_owner'             >> set_ftrace_filter
 echo 'ring_read'                       >> set_ftrace_filter
 echo 'ring_write'                      >> set_ftrace_filter
 cat set_ftrace_filter

@@ -11,6 +11,7 @@
 
 #define DEVICE_FILE "/dev/ringbuf"
 #define MSG_SIZE 256
+#define MASK (MSG_SIZE-1)
 #define TOTAL_SIZE (1U << 26) /* 64 MiB */
 #define PROD_CPU 0
 #define CONS_CPU 1
@@ -40,7 +41,7 @@ static pthread_barrier_t start_barrier;
 static pthread_barrier_t end_barrier;
 
 static inline unsigned char patt(unsigned int n) {
-    return (9 * n + 67) % 256;
+    return (n + (n << 3) + 67) & MASK; 
 }
 
 
