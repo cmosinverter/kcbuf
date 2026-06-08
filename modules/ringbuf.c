@@ -4,7 +4,6 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/uaccess.h>
-#include <linux/mutex.h>
 
 MODULE_DESCRIPTION("A ring buffer char device");
 MODULE_LICENSE("GPL");
@@ -13,8 +12,6 @@ MODULE_LICENSE("GPL");
 #define RING_SIZE 4096
 #define MASK (RING_SIZE - 1)
 
-static DEFINE_MUTEX(mymutex);
-
 static char ring_buf[RING_SIZE];
 static unsigned int head;  /* next byte to read */
 static unsigned int tail;  /* next byte to write */
@@ -22,21 +19,18 @@ static unsigned int tail;  /* next byte to write */
 static ssize_t ring_read(struct file *file, char __user *ubuf, size_t len,
                          loff_t *ppos)
 {
-    size_t chunk;
+    unsigned int t = smp_load_acquire(&tail);
+    unsigned int h = head;
+    size_t chunk = min(len, (size_t)(t - h));
 
-    if (mutex_lock_interruptible(&mymutex))
-        return -ERESTARTSYS;
+    if (chunk > RING_SIZE - (h & MASK))
+        chunk = RING_SIZE - (h & MASK);
 
-    chunk = min(len, (size_t)(tail - head));
-    if (chunk > RING_SIZE - (head & MASK))
-        chunk = RING_SIZE - (head & MASK);
-
-    if (copy_to_user(ubuf, ring_buf + (head & MASK), chunk)) {
-        mutex_unlock(&mymutex);
+    if (copy_to_user(ubuf, ring_buf + (h & MASK), chunk)) {
         return -EFAULT;
     }
-    head += chunk;
-    mutex_unlock(&mymutex);
+
+    smp_store_release(&head, h + chunk);
 
     return chunk;
 }
@@ -44,21 +38,19 @@ static ssize_t ring_read(struct file *file, char __user *ubuf, size_t len,
 static ssize_t ring_write(struct file *file, const char __user *ubuf,
                           size_t len, loff_t *ppos)
 {
-    size_t chunk;
 
-    if (mutex_lock_interruptible(&mymutex))
-        return -ERESTARTSYS;
+    unsigned int t = tail;
+    unsigned int h = smp_load_acquire(&head);
+    size_t chunk = min(len, (size_t)(RING_SIZE - (t - h)));
 
-    chunk = min(len, (size_t)(RING_SIZE - (tail - head)));
-    if (chunk > RING_SIZE - (tail & MASK))
-        chunk = RING_SIZE - (tail & MASK);
+    if (chunk > RING_SIZE - (t & MASK))
+        chunk = RING_SIZE - (t & MASK);
 
-    if (copy_from_user(ring_buf + (tail & MASK), ubuf, chunk)) {
-        mutex_unlock(&mymutex);
+    if (copy_from_user(ring_buf + (t & MASK), ubuf, chunk)) {
         return -EFAULT;
     }
-    tail += chunk;
-    mutex_unlock(&mymutex);
+
+    smp_store_release(&tail, t + chunk);
 
     return chunk;
 }
